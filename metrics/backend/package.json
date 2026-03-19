@@ -1,0 +1,27 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx tsx test.ts",
+    "detect": "npx tsx MetricProcessingService/MetricHandler.ts",
+    "metric": "npx ts-node MetricIngestionService/QueueServer.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "grpc-tools": "^1.13.1",
+    "protobufjs": "^8.0.0",
+    "ts-node": "^10.9.2",
+    "ts-proto": "^2.11.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0"
+  }
+}

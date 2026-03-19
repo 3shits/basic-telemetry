@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+service Queue {
+    rpc LoadMetric(stream LoadMetricRequest) returns (LoadMetricResponse);
+    rpc GetMetric(GetMetricRequest) returns (GetMetricResponse);
+    rpc StreamMetrics(StreamMetricRequest) returns ( stream StreamMetricResponse);
+}
+
+message StreamMetricRequest{
+    string targetID = 1;
+}
+
+message StreamMetricResponse{
+     repeated MetricResponse metric = 1;
+}
+
+message LoadMetricRequest {
+    MetricResponse data = 1;
+}
+
+message LoadMetricResponse {
+    string message = 1;
+}
+message GetMetricRequest {
+
+    string targetID = 1;
+}
+
+message GetMetricResponse {
+    repeated MetricResponse metric = 1;
+}
+
+message RawMetrics {
+   double cpu=1;
+  double memory=2;
+  double latency=3;
+  int32 failed_req=4;
+  int32 failed_logins=5;
+  int32 total_req=6;
+  int32 total_logins=7;
+}
+
+message MetricResponse {
+    string timestamp = 1;
+    RawMetrics data = 2;
+}
+/**
+{"timestamp":"1710000000","data":{"cpu":35.2,"memory":62.5,"latency":120.4,"failed_req":2,"failed_logins":0,"total_req":120,"total_logins":34}}
+{"timestamp":"1710000001","data":{"cpu":38.9,"memory":64.1,"latency":118.2,"failed_req":1,"failed_logins":0,"total_req":135,"total_logins":35}}
+{"timestamp":"1710000002","data":{"cpu":41.7,"memory":66.3,"latency":140.7,"failed_req":3,"failed_logins":1,"total_req":150,"total_logins":36}}
+{"timestamp":"1710000003","data":{"cpu":47.5,"memory":70.2,"latency":180.9,"failed_req":5,"failed_logins":2,"total_req":170,"total_logins":38}}
+{"timestamp":"1710000004","data":{"cpu":52.3,"memory":72.8,"latency":210.3,"failed_req":8,"failed_logins":3,"total_req":195,"total_logins":40}}
+*/
