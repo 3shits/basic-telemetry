@@ -19,6 +19,7 @@ export type Flags = {
 export type MetricFlags = {
   metric: Metric;
   flags: Flags;
+  timestamp: string;
 };
 
 export type Metric = keyof EWMAFlags;
@@ -52,6 +53,11 @@ export type MetricsData = {
   latency: number;
   error_rate: number;
   login_fail_rate: number;
+};
+export type EventMapType = {
+  metric: keyof EWMAFlags;
+  events: string[];
+  severity: number[];
 };
 
 export type StaticFlags = {
@@ -94,4 +100,5 @@ export type EWMASpikeFlags = {
 export type Score = {
   metric: keyof EWMAFlags;
   score: number;
+  timestamp: string;
 };

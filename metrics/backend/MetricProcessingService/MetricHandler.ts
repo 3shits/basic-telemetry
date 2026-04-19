@@ -41,7 +41,7 @@ const MetricIngestionService = () => {
   const call = client.streamMetrics(request);
   console.log("Connected to Stream");
   call.on("data", (res: StreamMetricResponse) => {
-    const flags = MetricProcessingService(res);
+    MetricProcessingService(res);
   });
   call.on("end", () => {
     console.log("StreamEnd");
@@ -140,7 +140,12 @@ const MetricProcessingService = (res: StreamMetricResponse) => {
   const prev = getPrevMetrics();
   const flags: MetricFlags[] = [];
   for (const metric of res.metric) {
-    const flag = DetectionEngine(prev, DetectionEngineConfig, metric.data);
+    const flag = DetectionEngine(
+      prev,
+      DetectionEngineConfig,
+      metric.data,
+      metric.timestamp,
+    );
     if (flag) flags.push(...flag);
   }
   console.log("Finished Processing");
@@ -150,8 +155,11 @@ const MetricProcessingService = (res: StreamMetricResponse) => {
 const DetectionEngine = (
   PrevMetricState: PrevState,
   Config: EngineConfig,
-  RawMetrics: RawMetrics,
+  RawMetrics: RawMetrics | undefined,
+  timestamp: string,
 ) => {
+  if (!RawMetrics) return;
+
   const metrics = computeDerievedMetrics(
     RawMetrics,
     PrevMetricState.ewma,
@@ -200,12 +208,13 @@ const DetectionEngine = (
       ewmaSpikeFlags,
       cusumFlags.flags,
       adaptiveFlags,
+      timestamp,
     );
     const updatePrevConfig = {
       ewma: metrics.ewma,
       variance: metrics.variance,
       drift: ewmaDriftFlags.updated_drift,
-      kewma: KPrevEWMA.shift(),
+      kewma: KPrevEWMA.shift()!,
       cusumpositive: cusumFlags.cusum_positive,
       cusumnegative: cusumFlags.cusum_negative,
     };
@@ -224,6 +233,7 @@ const updateFlags = (
   spike: EWMASpikeFlags,
   cusum: EWMAFlags,
   adapt: EWMAFlags,
+  timestamp: string,
 ) => {
   return metric_keys.map((key) => {
     const flags = {
@@ -238,6 +248,7 @@ const updateFlags = (
       flags: Object.fromEntries(
         Object.entries(flags).filter(([, v]) => v !== 0),
       ) as Flags,
+      timestamp,
     };
   });
 };
@@ -271,6 +282,6 @@ const computeDerievedMetrics = (
   const ewma = calculateEWMA(prevEWMA, processed_data, alpha_EWMA);
   const deviation = calculateDeviation(ewma, processed_data);
   const variance = calculateVariance(deviation, beta_Variance, prevVariance);
-return { processed_data, processed_raw_data, ewma, deviation, variance };
+  return { processed_data, processed_raw_data, ewma, deviation, variance };
 };
 MetricIngestionService();

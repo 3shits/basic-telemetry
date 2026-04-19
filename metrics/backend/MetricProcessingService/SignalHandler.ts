@@ -1,8 +1,14 @@
 import { EventMap, detectorWeight, metricWeight } from "../constants";
-import { MetricFlags, Score } from "../types";
+import { Flags, MetricFlags, Score } from "../types";
 
-let Events: string[] = [];
-let StartTimer = false;
+type Event = {
+  timestamp: string;
+  event: string;
+  severity: number;
+  metric: string;
+};
+
+let Events: Event[] = [];
 const DELAY = 300;
 export const SignalProcessingService = (flags: MetricFlags[]) => {
   const scores: Score[] = flags.map((flag) => {
@@ -12,40 +18,51 @@ export const SignalProcessingService = (flags: MetricFlags[]) => {
   scores.forEach((score) => {
     checkSeverity(score);
   });
+  clearEvents();
 
-  clearEventsTimer();
-  console.log(Events);
+  CorrelationEngine();
 };
 
-const clearEventsTimer = () => {
-  if (StartTimer) {
-    setTimeout(cleanupEvents, DELAY);
-    StartTimer = false;
+const CorrelationEngine = () => {
+  const EventClusters = createCluster();
+};
+
+const createCluster = () => {
+  // Events.forEach((e)=>{
+  //   if(!cluster.includes(e))
+  // })
+};
+const clearEvents = () => {
+  const now = Date.now();
+  Events = Events.filter((e) => now - Date.parse(e.timestamp) <= DELAY);
+  while (Events.length > 0 && now - Date.parse(Events[0].timestamp) > DELAY) {
+    //redundant
+    Events.shift();
   }
-  if (Events.length === 1) StartTimer = true;
 };
 
 const checkSeverity = (score: Score) => {
-  const MetricEvents = EventMap[score.metric];
-  const thresholds = Object.keys(MetricEvents).map(Number).sort();
-  let event = 0;
-  for (const t of thresholds) {
-    if (score.score < t) break;
-    event = t;
-  }
-  if (event != 0 && !Events.includes(MetricEvents[event]))
-    Events.push(MetricEvents[event]);
+  const MetricEvents = EventMap.find(({ metric }) => metric === score.metric)!;
+  const eventSeverity = MetricEvents.severity
+    .filter((v) => {
+      Number(v) <= score.score;
+    })
+    .findIndex((a, b) => a > b);
+  const newEvent = {
+    timestamp: score.timestamp,
+    event: MetricEvents.events[eventSeverity],
+    severity: eventSeverity,
+    metric: score.metric,
+  };
+  if (!Events.includes(newEvent)) Events.push(newEvent);
 };
 
 const checkScores = (flag: MetricFlags) => {
-  const { metric, flags } = flag;
+  const { metric, flags, timestamp } = flag;
   let severity = 0;
-  Object.keys(flags).forEach((key) => {
-    severity = severity + detectorWeight[key] * flags[key];
-  });
-  return { metric, score: metricWeight[metric] * severity };
-};
 
-const cleanupEvents = () => {
-  Events = [];
+  (Object.keys(flags) as (keyof Flags)[]).forEach((key) => {
+    if (flags[key]) severity += detectorWeight[key] * flags[key];
+  });
+  return { metric, score: metricWeight[metric] * severity, timestamp };
 };

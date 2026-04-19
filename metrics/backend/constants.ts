@@ -1,4 +1,4 @@
-import { EWMAMetrics } from "./types";
+import { EventMapType, EWMAMetrics } from "./types";
 
 export const metric_keys: (keyof EWMAMetrics)[] = [
   "cpu",
@@ -85,30 +85,241 @@ export const metricWeight = {
   login_fail_rate: 2.5,
 };
 
-export const EventMap = {
-  cpu: {
-    5: "CPU_DRIFT_EVENT",
-    6: "CPU_SPIKE_EVENT",
-    10: "CPU_SUSTAINED_LOAD_EVENT",
-    12: "CPU_OVERLOAD_EVENT",
+export const EventMap: EventMapType[] = [
+  {
+    metric: "cpu",
+    events: [
+      "CPU_DRIFT_EVENT",
+      "CPU_SPIKE_EVENT",
+      "CPU_SUSTAINED_LOAD_EVENT",
+      "CPU_OVERLOAD_EVENT",
+    ],
+    severity: [5, 6, 10, 12],
   },
-  memory: {
-    4: "MEMORY_LEAK_EVENT",
-    6: "MEMORY_SPIKE_EVENT",
-    10: "MEMORY_PRESSURE_EVENT",
+  {
+    metric: "cpu",
+    events: [
+      "MEMORY_LEAK_EVENT",
+      "MEMORY_SPIKE_EVENT",
+      "MEMORY_PRESSURE_EVENT",
+    ],
+    severity: [4, 6, 10],
   },
-  latency: {
-    8: "LATENCY_DRIFT_EVENT",
-    10: "LATENCY_SPIKE_EVENT",
-    15: "LATENCY_DEGRADATION_EVENT",
+  {
+    metric: "latency",
+    events: [
+      "LATENCY_DRIFT_EVENT",
+      "LATENCY_SPIKE_EVENT",
+      "LATENCY_DEGRADATION_EVENT",
+    ],
+    severity: [8, 10, 15],
   },
-  error_rate: {
-    12: "ERROR_RATE_SPIKE_EVENT",
-    15: "ERROR_RATE_SUSTAINED_EVENT",
-    20: "ERROR_RATE_CRITICAL_EVENT",
+  {
+    metric: "error_rate",
+    events: [
+      "ERROR_RATE_SPIKE_EVENT",
+      "ERROR_RATE_SUSTAINED_EVENT",
+      "ERROR_RATE_CRITICAL_EVENT",
+    ],
+    severity: [12, 15, 20],
   },
-  login_fail_rate: {
-    7: "LOGIN_FAILURE_SPIKE_EVENT",
-    10: "LOGIN_FAILURE_BURST_EVENT",
+  {
+    metric: "login_fail_rate",
+    events: ["LOGIN_FAILURE_SPIKE_EVENT", "LOGIN_FAILURE_BURST_EVENT"],
+    severity: [7, 10],
+  },
+];
+
+export const IncidentMap = {
+  CPU_OVERLOAD_EVENT: {
+    dependencies: [
+      "LATENCY_SPIKE_EVENT",
+      "LATENCY_DEGRADATION_EVENT",
+      "ERROR_RATE_SPIKE_EVENT",
+      "ERROR_RATE_CRITICAL_EVENT",
+      "MEMORY_PRESSURE_EVENT",
+    ],
+  },
+
+  CPU_SUSTAINED_LOAD_EVENT: {
+    dependencies: [
+      "LATENCY_DEGRADATION_EVENT",
+      "ERROR_RATE_SUSTAINED_EVENT",
+      "MEMORY_PRESSURE_EVENT",
+    ],
+  },
+
+  CPU_SPIKE_EVENT: {
+    dependencies: ["LATENCY_SPIKE_EVENT", "MEMORY_SPIKE_EVENT"],
+  },
+
+  CPU_DRIFT_EVENT: {
+    dependencies: ["LATENCY_DRIFT_EVENT", "MEMORY_LEAK_EVENT"],
+  },
+
+  MEMORY_LEAK_EVENT: {
+    dependencies: [
+      "LATENCY_DEGRADATION_EVENT",
+      "ERROR_RATE_SUSTAINED_EVENT",
+      "CPU_SUSTAINED_LOAD_EVENT",
+    ],
+  },
+
+  MEMORY_PRESSURE_EVENT: {
+    dependencies: [
+      "CPU_OVERLOAD_EVENT",
+      "LATENCY_DEGRADATION_EVENT",
+      "ERROR_RATE_SPIKE_EVENT",
+    ],
+  },
+
+  MEMORY_SPIKE_EVENT: {
+    dependencies: ["CPU_SPIKE_EVENT", "LATENCY_SPIKE_EVENT"],
+  },
+
+  LATENCY_SPIKE_EVENT: {
+    dependencies: [
+      "CPU_SPIKE_EVENT",
+      "CPU_OVERLOAD_EVENT",
+      "ERROR_RATE_SPIKE_EVENT",
+    ],
+  },
+
+  LATENCY_DEGRADATION_EVENT: {
+    dependencies: [
+      "CPU_SUSTAINED_LOAD_EVENT",
+      "MEMORY_LEAK_EVENT",
+      "ERROR_RATE_SUSTAINED_EVENT",
+    ],
+  },
+
+  LATENCY_DRIFT_EVENT: {
+    dependencies: ["CPU_DRIFT_EVENT"],
+  },
+
+  ERROR_RATE_SPIKE_EVENT: {
+    dependencies: [
+      "LATENCY_SPIKE_EVENT",
+      "CPU_OVERLOAD_EVENT",
+      "LOGIN_FAILURE_BURST_EVENT",
+    ],
+  },
+
+  ERROR_RATE_SUSTAINED_EVENT: {
+    dependencies: ["LATENCY_DEGRADATION_EVENT", "MEMORY_LEAK_EVENT"],
+  },
+
+  ERROR_RATE_CRITICAL_EVENT: {
+    dependencies: ["CPU_OVERLOAD_EVENT", "LATENCY_DEGRADATION_EVENT"],
+  },
+
+  LOGIN_FAILURE_SPIKE_EVENT: {
+    dependencies: ["LOGIN_FAILURE_BURST_EVENT"],
+  },
+
+  LOGIN_FAILURE_BURST_EVENT: {
+    dependencies: ["ERROR_RATE_SPIKE_EVENT", "LATENCY_SPIKE_EVENT"],
   },
 };
+
+export const IncidentRules = [
+  {
+    name: "CASCADING_FAILURE_INCIDENT",
+    match: ["CPU_OVERLOAD_EVENT", "ERROR_RATE_CRITICAL_EVENT"],
+    optional: ["LATENCY_DEGRADATION_EVENT"],
+    priority: 100,
+  },
+
+  {
+    name: "SYSTEM_OVERLOAD_INCIDENT",
+    match: ["CPU_OVERLOAD_EVENT", "LATENCY_SPIKE_EVENT"],
+    optional: ["ERROR_RATE_SPIKE_EVENT", "MEMORY_PRESSURE_EVENT"],
+    priority: 95,
+  },
+
+  {
+    name: "RESOURCE_EXHAUSTION_IMPACT_INCIDENT",
+    match: ["MEMORY_LEAK_EVENT", "LATENCY_DEGRADATION_EVENT"],
+    optional: ["ERROR_RATE_SUSTAINED_EVENT", "CPU_SUSTAINED_LOAD_EVENT"],
+    priority: 90,
+  },
+
+  {
+    name: "SECURITY_ANOMALY_IMPACT_INCIDENT",
+    match: ["LOGIN_FAILURE_BURST_EVENT", "ERROR_RATE_SPIKE_EVENT"],
+    optional: ["LATENCY_SPIKE_EVENT"],
+    priority: 90,
+  },
+
+  {
+    name: "CPU_SATURATION_INCIDENT",
+    match: ["CPU_SUSTAINED_LOAD_EVENT", "LATENCY_DEGRADATION_EVENT"],
+    optional: ["ERROR_RATE_SUSTAINED_EVENT"],
+    priority: 80,
+  },
+
+  {
+    name: "RESOURCE_PRESSURE_INCIDENT",
+    match: ["MEMORY_PRESSURE_EVENT"],
+    optional: ["CPU_OVERLOAD_EVENT", "LATENCY_DEGRADATION_EVENT"],
+    priority: 75,
+  },
+
+  {
+    name: "ERROR_RATE_DEGRADATION_INCIDENT",
+    match: ["ERROR_RATE_SUSTAINED_EVENT"],
+    optional: ["LATENCY_DEGRADATION_EVENT"],
+    priority: 70,
+  },
+
+  {
+    name: "PERFORMANCE_DEGRADATION_INCIDENT",
+    match: ["LATENCY_DEGRADATION_EVENT"],
+    exclude: ["CPU_OVERLOAD_EVENT", "MEMORY_PRESSURE_EVENT"],
+    optional: ["LATENCY_DRIFT_EVENT"],
+    priority: 60,
+  },
+
+  {
+    name: "PARTIAL_DEGRADATION_INCIDENT",
+    match: ["LATENCY_SPIKE_EVENT"],
+    optional: ["CPU_DRIFT_EVENT", "MEMORY_SPIKE_EVENT"],
+    exclude: ["CPU_OVERLOAD_EVENT"],
+    priority: 55,
+  },
+
+  {
+    name: "RESOURCE_SPIKE_CLUSTER_INCIDENT",
+    match: ["CPU_SPIKE_EVENT", "MEMORY_SPIKE_EVENT"],
+    optional: ["LATENCY_SPIKE_EVENT"],
+    priority: 50,
+  },
+
+  {
+    name: "DRIFT_DEGRADATION_INCIDENT",
+    match: ["CPU_DRIFT_EVENT", "LATENCY_DRIFT_EVENT"],
+    optional: ["MEMORY_LEAK_EVENT"],
+    priority: 50,
+  },
+
+  {
+    name: "TRANSIENT_SPIKE_INCIDENT",
+    match: ["CPU_SPIKE_EVENT"],
+    optional: ["LATENCY_SPIKE_EVENT", "MEMORY_SPIKE_EVENT"],
+    exclude: ["CPU_SUSTAINED_LOAD_EVENT", "MEMORY_LEAK_EVENT"],
+    priority: 40,
+  },
+
+  {
+    name: "LOGIN_ANOMALY_INCIDENT",
+    match: ["LOGIN_FAILURE_SPIKE_EVENT"],
+    optional: ["LOGIN_FAILURE_BURST_EVENT"],
+    priority: 60,
+  },
+
+  {
+    name: "GENERIC_ANOMALY_INCIDENT",
+    match: [],
+    priority: 1,
+  },
+];
